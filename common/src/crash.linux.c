@@ -72,7 +72,6 @@ static void load_symbols()
     DEBUG_ERROR("executable is not a bfd_object");
     return;
   }
-
   crash.section = bfd_get_section_by_name(crash.fd, ".text");
   if (!crash.section)
   {
@@ -98,10 +97,18 @@ static void load_symbols()
 
 static bool lookup_address(bfd_vma pc, const char ** filename, const char ** function, unsigned int * line, unsigned int * discriminator)
 {
+#ifdef bfd_get_section_flags
   if ((bfd_get_section_flags(crash.fd, crash.section) & SEC_ALLOC) == 0)
+#else
+  if ((bfd_section_flags(crash.section) & SEC_ALLOC) == 0)
+#endif
     return false;
 
+#ifdef bfd_get_section_size
   bfd_size_type size = bfd_get_section_size(crash.section);
+#else
+  bfd_size_type size = bfd_section_size(crash.section);
+#endif
   if (pc >= size)
     return false;
 
