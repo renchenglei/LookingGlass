@@ -620,6 +620,16 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_MOUSEMOTION:
     {
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       if (state.ignoreInput || !params.useSpiceInput)
         break;
 
@@ -696,6 +706,16 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_KEYDOWN:
     {
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       SDL_Scancode sc = event->key.keysym.scancode;
       if (sc == params.escapeKey)
       {
@@ -732,6 +752,16 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_KEYUP:
     {
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       SDL_Scancode sc = event->key.keysym.scancode;
       if (state.escapeActive)
       {
@@ -787,6 +817,16 @@ int eventFilter(void * userdata, SDL_Event * event)
     }
 
     case SDL_MOUSEWHEEL:
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       if (state.ignoreInput || !params.useSpiceInput)
         break;
 
@@ -801,6 +841,16 @@ int eventFilter(void * userdata, SDL_Event * event)
       break;
 
     case SDL_MOUSEBUTTONDOWN:
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       if (state.ignoreInput || !params.useSpiceInput)
         break;
 
@@ -818,6 +868,16 @@ int eventFilter(void * userdata, SDL_Event * event)
       break;
 
     case SDL_MOUSEBUTTONUP:
+      if (!spice_running)
+      {
+        if(params.useSpiceInput && !spice_ready())
+        {
+          if (!spice_connect(params.spiceHost, params.spicePort, "") && !spice_ready() && !spice_process())
+            DEBUG_ERROR("SDL_MOUSEMOTION: reconnect mouse");
+          else
+            spice_running = true;
+        }
+      }
       if (state.ignoreInput || !params.useSpiceInput)
         break;
 
