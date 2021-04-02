@@ -43,6 +43,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include "kb.h"
 #include "ll.h"
 
+static bool spice_running = true;
+
 // forwards
 static int cursorThread(void * unused);
 static int renderThread(void * unused);
@@ -386,12 +388,13 @@ static int frameThread(void * unused)
 int spiceThread(void * arg)
 {
   while(state.running)
-    if (!spice_process())
+    if (spice_running && !spice_process())
     {
       if (state.running)
       {
-        state.running = false;
         DEBUG_ERROR("failed to process spice messages");
+        spice_running = false;
+        continue;
       }
       break;
     }
@@ -1312,6 +1315,19 @@ int run()
           *closeAlert = true;
           closeAlert  = NULL;
         }
+      }
+      if (!spice_running && params.useSpiceInput && spice_ready())
+      {
+        for(int i = 0; i < SDL_NUM_SCANCODES; ++i)
+          if (state.keyDown[i])
+          {
+            uint32_t scancode = mapScancode(i);
+            if (scancode == 0)
+              continue;
+            state.keyDown[i] = false;
+            spice_key_up(scancode);
+          }
+        spice_disconnect();
       }
     }
 
