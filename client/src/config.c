@@ -106,6 +106,7 @@ static struct Option options[] =
     .module         = "win",
     .name           = "title",
     .description    = "The window title",
+    .shortopt       = 't',
     .type           = OPTION_TYPE_STRING,
     .value.x_string = "Looking Glass (client)"
   },
