@@ -284,6 +284,9 @@ static int frameThread(void * unused)
 
   while(state.running)
   {
+    //Flag LG client is ready
+    if(!(state.shm->flags & KVMFR_HEADER_FLAG_READY))
+      __sync_or_and_fetch(&state.shm->flags, KVMFR_HEADER_FLAG_READY);
     // poll until we have a new frame
     while(!(state.shm->frame.flags & KVMFR_FRAME_FLAG_UPDATE))
     {
