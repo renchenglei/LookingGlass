@@ -43,6 +43,10 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include "kb.h"
 #include "ll.h"
 
+#ifdef USE_INTELVTOUCH
+#include "vInputClient.h"
+#endif
+
 static bool spice_running = true;
 
 // forwards
@@ -623,6 +627,11 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_MOUSEMOTION:
     {
+#ifdef USE_INTELVTOUCH
+      vinput_mouse_position(event->motion.x, event->motion.y);
+      realignGuest = false;
+      DEBUG_INFO("realignGuest = %d", realignGuest);
+#else
       if (!spice_running)
       {
         if(params.useSpiceInput && !spice_ready())
@@ -704,6 +713,7 @@ int eventFilter(void * userdata, SDL_Event * event)
         }
       }
 
+#endif
       break;
     }
 
@@ -844,6 +854,9 @@ int eventFilter(void * userdata, SDL_Event * event)
       break;
 
     case SDL_MOUSEBUTTONDOWN:
+#ifdef USE_INTELVTOUCH
+      vinput_touch_press(event->button.x, event->button.y);
+#else
       if (!spice_running)
       {
         if(params.useSpiceInput && !spice_ready())
@@ -868,9 +881,13 @@ int eventFilter(void * userdata, SDL_Event * event)
         DEBUG_ERROR("SDL_MOUSEBUTTONDOWN: failed to send message");
         break;
       }
+#endif
       break;
 
     case SDL_MOUSEBUTTONUP:
+#ifdef USE_INTELVTOUCH
+      vinput_touch_release(event->button.x, event->button.y);
+#else
       if (!spice_running)
       {
         if(params.useSpiceInput && !spice_ready())
@@ -895,6 +912,7 @@ int eventFilter(void * userdata, SDL_Event * event)
         DEBUG_ERROR("SDL_MOUSEBUTTONUP: failed to send message");
         break;
       }
+#endif
       break;
   }
 
@@ -1269,6 +1287,10 @@ int run()
   SDL_Thread *t_spice  = NULL;
   SDL_Thread *t_frame  = NULL;
   SDL_Thread *t_render = NULL;
+
+#ifdef USE_INTELVTOUCH
+  initvInputClient(params.shmFile);
+#endif
 
   while(1)
   {

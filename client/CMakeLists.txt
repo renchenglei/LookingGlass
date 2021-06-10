@@ -35,6 +35,7 @@ add_compile_options(
   "-fdata-sections"
   "-ffunction-sections"
   "$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb>"
+  "-DUSE_INTELVTOUCH"
 )
 
 set(EXE_FLAGS "-Wl,--gc-sections")
@@ -81,6 +82,7 @@ set(SOURCES
 	src/lg-renderer.c
 	src/ll.c
 	src/utils.c
+	src/vInputClient.c
 )
 
 add_subdirectory("${PROJECT_TOP}/common" "${CMAKE_BINARY_DIR}/common")
