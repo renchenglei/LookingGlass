@@ -28,6 +28,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "interface/app.h"
 
@@ -43,6 +44,7 @@ struct DesktopShader
   GLint uDesktopSize;
   GLint uNearest;
   GLint uNV, uNVGain;
+  GLint uRotate;
 };
 
 struct EGL_Desktop
@@ -93,6 +95,7 @@ static bool egl_init_desktop_shader(
   shader->uNearest     = egl_shader_get_uniform_location(shader->shader, "nearest" );
   shader->uNV          = egl_shader_get_uniform_location(shader->shader, "nv"      );
   shader->uNVGain      = egl_shader_get_uniform_location(shader->shader, "nvGain"  );
+  shader->uRotate      = egl_shader_get_uniform_location(shader->shader, "rotate"  );
 
   return true;
 }
@@ -257,7 +260,7 @@ void egl_desktop_perform_update(EGL_Desktop * desktop, const bool sourceChanged)
   }
 }
 
-bool egl_desktop_render(EGL_Desktop * desktop, const float x, const float y, const float scaleX, const float scaleY, const bool nearest)
+bool egl_desktop_render(EGL_Desktop * desktop, const float x, const float y, const float scaleX, const float scaleY, const bool nearest, const uint8_t rotate)
 {
   if (!desktop->shader)
     return false;
@@ -270,6 +273,7 @@ bool egl_desktop_render(EGL_Desktop * desktop, const float x, const float y, con
   glUniform4f(shader->uDesktopPos , x, y, scaleX, scaleY);
   glUniform1i(shader->uNearest    , nearest ? 1 : 0);
   glUniform2f(shader->uDesktopSize, desktop->width, desktop->height);
+  glUniform1f(shader->uRotate     , M_PI / 2.0 * rotate);
 
   if (desktop->nvGain)
   {
