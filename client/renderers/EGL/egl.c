@@ -84,6 +84,7 @@ struct Inst
   float splashRatio;
   float screenScaleX, screenScaleY;
   bool  useNearest;
+  uint8_t rotate;
 
   bool         cursorVisible;
   int          cursorX    , cursorY;
@@ -170,6 +171,7 @@ bool egl_create(void ** opaque, const LG_RendererParams params)
   this->scaleY       = 1.0f;
   this->screenScaleX = 1.0f;
   this->screenScaleY = 1.0f;
+  this->rotate       = 0;
 
   this->font = LG_Fonts[0];
   if (!this->font->create(&this->fontObj, NULL, 16))
@@ -304,13 +306,15 @@ bool egl_on_frame_event(void * opaque, const LG_RendererFormat format, const uin
     this->format.type   != format.type   ||
     this->format.width  != format.width  ||
     this->format.height != format.height ||
-    this->format.pitch  != format.pitch
+    this->format.pitch  != format.pitch  ||
+    this->format.rotate != format.rotate
   );
 
   if (this->sourceChanged)
     memcpy(&this->format, &format, sizeof(LG_RendererFormat));
 
   this->useNearest = this->width < format.width || this->height < format.height;
+  this->rotate = format.rotate;
 
   if (!egl_desktop_prepare_update(this->desktop, this->sourceChanged, format, data))
   {
@@ -490,7 +494,7 @@ bool egl_render(void * opaque, SDL_Window * window)
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  if (egl_desktop_render(this->desktop, this->translateX, this->translateY, this->scaleX, this->scaleY, this->useNearest))
+  if (egl_desktop_render(this->desktop, this->translateX, this->translateY, this->scaleX, this->scaleY, this->useNearest, this->rotate))
   {
     if (!this->waitFadeTime)
       this->waitFadeTime = microtime() + SPLASH_FADE_TIME;

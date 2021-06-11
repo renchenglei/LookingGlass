@@ -56,6 +56,7 @@ typedef struct LG_RendererFormat
   unsigned int stride;  // scanline width (zero if compresed)
   unsigned int pitch;   // scanline bytes (or compressed size)
   unsigned int bpp;     // bits per pixel (zero if compressed)
+  unsigned int rotate;  // rotation. 0 unchange, 1-90, 2-180, 3-270
 }
 LG_RendererFormat;
 

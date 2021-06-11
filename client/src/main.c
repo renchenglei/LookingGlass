@@ -335,6 +335,7 @@ static int frameThread(void * unused)
     lgrFormat.height = header.height;
     lgrFormat.stride = header.stride;
     lgrFormat.pitch  = header.pitch;
+    lgrFormat.rotate = header.rotate;
 
     size_t dataSize;
     switch(header.type)
@@ -379,6 +380,7 @@ static int frameThread(void * unused)
     }
 
     const uint8_t * data = (const uint8_t *)state.shm + header.dataPos;
+
     if (!state.lgr->on_frame_event(state.lgrData, lgrFormat, data))
     {
       DEBUG_ERROR("renderer on frame event returned failure");

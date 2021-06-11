@@ -30,4 +30,4 @@ void egl_desktop_free(EGL_Desktop ** desktop);
 
 bool egl_desktop_prepare_update(EGL_Desktop * desktop, const bool sourceChanged, const LG_RendererFormat format, const uint8_t * data);
 void egl_desktop_perform_update(EGL_Desktop * desktop, const bool sourceChanged);
-bool egl_desktop_render(EGL_Desktop * desktop, const float x, const float y, const float scaleX, const float scaleY, const bool nearest);
+bool egl_desktop_render(EGL_Desktop * desktop, const float x, const float y, const float scaleX, const float scaleY, const bool nearest, const uint8_t rotate);
