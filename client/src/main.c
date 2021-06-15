@@ -365,13 +365,24 @@ static int frameThread(void * unused)
       break;
     }
 
-    if (header.width != state.srcSize.x || header.height != state.srcSize.y)
+    int flags = SDL_GetWindowFlags(state.window);
+    bool isMax = (flags & SDL_WINDOW_MAXIMIZED);
+
+    if (header.width != state.srcSize.x || header.height != state.srcSize.y || state.rotate != header.rotate || state.isMax != isMax)
     {
-      state.srcSize.x = header.width;
-      state.srcSize.y = header.height;
+      if (header.rotate > 0)
+      {
+        state.srcSize.x = header.height;
+        state.srcSize.y = header.width;
+      }else {
+        state.srcSize.x = header.width;
+        state.srcSize.y = header.height;
+      }
       state.haveSrcSize = true;
-      if (params.autoResize)
-        SDL_SetWindowSize(state.window, header.width, header.height);
+      if (params.autoResize && !isMax)
+        SDL_SetWindowSize(state.window, state.srcSize.x, state.srcSize.y);
+      state.rotate = header.rotate;
+      state.isMax = isMax;
       updatePositionInfo();
     }
 
@@ -1068,6 +1079,8 @@ int run()
   state.running   = true;
   state.scaleX    = 1.0f;
   state.scaleY    = 1.0f;
+  state.rotate    = 0;
+  state.isMax     = false;
 
   state.mouseSens = params.mouseSens;
        if (state.mouseSens < -9) state.mouseSens = -9;
