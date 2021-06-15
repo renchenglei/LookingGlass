@@ -44,6 +44,8 @@ struct AppState
   bool                 haveCursorPos;
   float                scaleX, scaleY;
   float                accX, accY;
+  uint8_t              rotate;
+  bool                 isMax;
 
   const LG_Renderer  * lgr;
   void               * lgrData;
