@@ -629,8 +629,8 @@ int eventFilter(void * userdata, SDL_Event * event)
     {
 #ifdef USE_INTELVTOUCH
       vinput_mouse_position(event->motion.x, event->motion.y);
-      realignGuest = false;
-      DEBUG_INFO("realignGuest = %d", realignGuest);
+      if (realignGuest)
+        realignGuest = false;
 #else
       if (!spice_running)
       {
