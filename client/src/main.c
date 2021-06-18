@@ -48,6 +48,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #endif
 
 static bool spice_running = true;
+static bool frame_ready = false;
 
 // forwards
 static int cursorThread(void * unused);
@@ -116,9 +117,26 @@ static int renderThread(void * unused)
 
   struct timespec time;
   clock_gettime(CLOCK_MONOTONIC, &time);
+  frame_ready = true;
 
   while(state.running)
   {
+    uint64_t nsec = time.tv_nsec + state.frameTime;
+    if(!frame_ready) {
+      if (nsec > 1e9)
+      {
+        time.tv_nsec = nsec - 1e9;
+        ++time.tv_sec;
+      }
+      else
+        time.tv_nsec = nsec;
+
+      clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time, NULL);
+      continue;
+    }
+    else
+      frame_ready = false;
+
     if (state.lgrResize)
     {
       if (state.lgr)
@@ -148,7 +166,6 @@ static int renderThread(void * unused)
       }
     }
 
-    uint64_t nsec = time.tv_nsec + state.frameTime;
     if (nsec > 1e9)
     {
       time.tv_nsec = nsec - 1e9;
@@ -167,6 +184,7 @@ static int renderThread(void * unused)
 
 static int cursorThread(void * unused)
 {
+  return 0;
   KVMFRCursor         header;
   LG_RendererCursor   cursorType     = LG_CURSOR_COLOR;
   uint32_t            version        = 0;
@@ -300,6 +318,7 @@ static int frameThread(void * unused)
       usleep(params.framePollInterval);
       continue;
     }
+    frame_ready = true;
 
     // we must take a copy of the header to prevent the contained
     // arguments from being abused to overflow buffers.

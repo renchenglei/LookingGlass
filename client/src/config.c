@@ -97,6 +97,7 @@ static struct Option options[] =
     .module        = "app",
     .name          = "framePollInterval",
     .description   = "How often to check for a frame update in microseconds",
+    .shortopt       = 'R',
     .type          = OPTION_TYPE_INT,
     .value.x_int   = 1000
   },
