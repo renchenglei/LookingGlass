@@ -320,6 +320,13 @@ static struct Option options[] =
     .type           = OPTION_TYPE_BOOL,
     .value.x_bool   = true
   },
+  {
+    .module         = "guestClipboard",
+    .name           = "enable",
+    .description    = "Enable the built in guest clipboard support",
+    .type           = OPTION_TYPE_BOOL,
+    .value.x_bool   = false
+  },
   {0}
 };
 
@@ -425,6 +432,18 @@ bool config_load(int argc, char * argv[])
     }
 
     params.scaleMouseInput = option_get_bool("spice", "scaleCursor");
+  }
+
+  // By default we should use UI
+  params.useUI = true;
+  params.useGuestClipboard = option_get_bool("guestClipboard", "enable");
+  // Cannot use SpiceClipboard when using GuestClipboard
+  if (params.useGuestClipboard) {
+    params.useSpiceClipboard = false;
+    params.useSpiceInput = false;
+    params.useUI = false;
+    params.clipboardToVM    = option_get_bool("spice", "clipboardToVM"   );
+    params.clipboardToLocal = option_get_bool("spice", "clipboardToLocal");
   }
 
   return true;
