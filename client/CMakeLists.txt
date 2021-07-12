@@ -59,6 +59,7 @@ find_package(GMP)
 add_definitions(-D BUILD_VERSION='"${BUILD_VERSION}"')
 add_definitions(-D ATOMIC_LOCKING)
 add_definitions(-D GL_GLEXT_PROTOTYPES)
+add_definitions(-D GUEST_ANDROID)
 get_filename_component(PROJECT_TOP "${PROJECT_SOURCE_DIR}/.." ABSOLUTE)
 
 include_directories(
@@ -83,6 +84,7 @@ set(SOURCES
 	src/ll.c
 	src/utils.c
 	src/vInputClient.c
+	src/vsock_clipboard.c
 )
 
 add_subdirectory("${PROJECT_TOP}/common" "${CMAKE_BINARY_DIR}/common")

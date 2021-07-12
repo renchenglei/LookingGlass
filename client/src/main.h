@@ -94,6 +94,8 @@ struct AppParams
   bool         showFPS;
   bool         useSpiceInput;
   bool         useSpiceClipboard;
+  bool         useGuestClipboard;
+  bool         useUI;
   const char * spiceHost;
   unsigned int spicePort;
   bool         clipboardToVM;
