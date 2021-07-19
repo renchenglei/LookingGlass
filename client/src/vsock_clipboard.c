@@ -16,15 +16,16 @@
 #define VMADDR_CID_HOST 2
 #define VSOCK_PORT 77777
 #define DATA_SIZE_LENGTH 4
-#define MAX_CHUNK_LENGTH 4096
-#define MAX_DATA_LENGTH 64*1024
+#define MAX_CHUNK_LENGTH 8192
+#define MAX_DATA_LENGTH 512*1024
 
 struct VSock {
   int  _fd;
   int  _client_fd;
   bool _bind_success;
   size_t  _clipSize;
-  uint8_t _clipBuffer[MAX_DATA_LENGTH];
+  uint8_t *_clipBuffer;
+  uint8_t _defaultBuffer[MAX_CHUNK_LENGTH];
   GuestClipboardNotice  cbNoticeFn;
   GuestClipboardData    cbDataFn;
   GuestClipboardRelease cbReleaseFn;
@@ -37,7 +38,8 @@ struct VSock vsock =
   ._client_fd = 0,
   ._bind_success = false,
   ._clipSize = 0,
-  ._clipBuffer[0] = 0,
+  ._clipBuffer = 0,
+  ._defaultBuffer[0] = 0,
 };
 
 bool guest_set_clipboard_cb(
@@ -157,7 +159,7 @@ bool vsock_process() {
   return true;
 }
 
-bool read_from_vsock(uint8_t* data, uint32_t size) {
+int read_from_vsock(uint8_t* data, uint32_t size) {
   if (!vsock_connected()) {
     return false;
   }
@@ -172,18 +174,18 @@ bool read_from_vsock(uint8_t* data, uint32_t size) {
     // On any errors its better to reset the connection so as to not violate our protocol
     // of sending the size followed by chunks of content 
     vsock_disconnect_client();
-    return false;
+    return nread;
   }
 
   // We precisely know how much to read
   // This is a failure, which can lead to more problems later
   // This cannot happend and we cannot tolerate this
-  if (nread != size) {
-    DEBUG_ERROR("Unexpected size of data");
-    vsock_disconnect_client();
-    return false;
-  }
-  return true;
+  //if (nread != size) {
+  //  DEBUG_ERROR("Unexpected size of data");
+  //  vsock_disconnect_client();
+  //  return false;
+  //}
+  return nread;
 }
 
 bool vsock_read() {
@@ -191,7 +193,7 @@ bool vsock_read() {
   // First read the length of the data to recieve
   uint8_t data[DATA_SIZE_LENGTH];
 
-  if (!read_from_vsock(data, DATA_SIZE_LENGTH)) {
+  if (read_from_vsock(data, DATA_SIZE_LENGTH) != DATA_SIZE_LENGTH) {
     return false; 
   }
 
@@ -209,17 +211,22 @@ bool vsock_read() {
 
   vsock_clear_buffers();
 
+  if (*size > MAX_CHUNK_LENGTH) {
+    vsock._clipBuffer = (uint8_t*)malloc(*size + 1);
+  }
+
   uint8_t* bytes = vsock._clipBuffer;
   int remaining = *size;
   uint8_t* new_bytes = bytes;
  
   while (remaining > 0) {
     int to_read = ((remaining > MAX_CHUNK_LENGTH) ? MAX_CHUNK_LENGTH : remaining);
-    if (!read_from_vsock(new_bytes, to_read)) {
+    int nread = 0;
+    if ((nread = read_from_vsock(new_bytes, to_read)) <= 0) {
       return false;
     }
-    remaining -= to_read;
-    new_bytes += to_read;
+    remaining -= nread;
+    new_bytes += nread;
   }
 
   bytes[*size] = 0;
@@ -262,6 +269,10 @@ bool write_to_vsock(uint8_t* bytes, uint32_t size) {
 }
 
 bool vsock_write(uint8_t *bytes, uint32_t size) {
+  if (size > MAX_DATA_LENGTH) {
+    DEBUG_INFO("Data too long... Truncating to %d", MAX_DATA_LENGTH);
+    size = MAX_DATA_LENGTH;
+  }
   DEBUG_INFO("Writing data size=%d", size);
   int32_t conv_size = htonl(size);
   uint8_t* data = (uint8_t*)&conv_size;
@@ -272,7 +283,7 @@ bool vsock_write(uint8_t *bytes, uint32_t size) {
 
   while (size > 0) {
     uint32_t size_to_send = (size > MAX_CHUNK_LENGTH) ? MAX_CHUNK_LENGTH : size;
-    if (!write_to_vsock(bytes, size)) {
+    if (!write_to_vsock(bytes, size_to_send)) {
       DEBUG_ERROR("Failed to write to server");
       return false;
     }
@@ -285,7 +296,12 @@ bool vsock_write(uint8_t *bytes, uint32_t size) {
 
 void vsock_clear_buffers() {
   vsock._clipSize = 0;
-  vsock._clipBuffer[0] = 0;
+  if (vsock._clipBuffer &&
+      vsock._clipBuffer != vsock._defaultBuffer) {
+    free(vsock._clipBuffer);
+  }
+  vsock._clipBuffer = vsock._defaultBuffer;
+  vsock._defaultBuffer[0] = 0;
 }
 
 bool vsock_connected() {
