@@ -59,15 +59,6 @@ static const char * x11_cb_getName()
   return "X11";
 }
 
-
-static int x_error_handler(Display *disp, XErrorEvent *evnt) {
-  DEBUG_ERROR("X Error Failed request");
-  DEBUG_ERROR("Error code: %u", evnt->error_code);
-  DEBUG_ERROR("Major opcode: %u", evnt->request_code);
-  DEBUG_ERROR("Minor opcode: %u", evnt->minor_code);
-  return 0;
-}
-
 static bool x11_cb_init(
     SDL_SysWMinfo         * wminfo,
     LG_ClipboardReleaseFn   releaseFn,
@@ -121,7 +112,6 @@ static bool x11_cb_init(
 
   XFixesSelectSelectionInput(this->display, this->window, XA_PRIMARY      , XFixesSetSelectionOwnerNotifyMask);
   XFixesSelectSelectionInput(this->display, this->window, this->aSelection, XFixesSetSelectionOwnerNotifyMask);
-  XSetErrorHandler(x_error_handler);
 
   return true;
 }

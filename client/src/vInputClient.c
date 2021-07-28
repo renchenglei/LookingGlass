@@ -10,6 +10,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
+#include "vInputClient.h"
 #define MSGQ_FILE_PATH "/tmp/input-lg"
 
 static unsigned int tracking_id = 0;
@@ -68,43 +69,55 @@ void send_event(int32_t type, int32_t code, int32_t value) {
   msgsnd(mqId, &mD, sizeof(struct mQData), 0);
 }
 
+bool vinput_touch(action a, u_int32_t x, u_int32_t y, int rotation) {
 
-bool vinput_touch_press(u_int32_t x, u_int32_t y)
-{
-	send_event(EV_ABS, ABS_MT_SLOT, 0);
-	send_event(EV_ABS, ABS_MT_TRACKING_ID, tracking_id++);
-	send_event(EV_ABS, ABS_PRESSURE, 50);
-	send_event(EV_ABS, ABS_MT_PRESSURE, 50);
-	send_event(EV_ABS, ABS_MT_POSITION_X, x);
-	send_event(EV_ABS, ABS_MT_POSITION_Y, y);
-	send_event(EV_KEY, BTN_TOUCH, 1);
+	if (mqId == -1) {
+		return false;
+	}
+
+        switch (rotation) {
+	    case 1:
+	    case 3:
+	        x *= XRES_MAX/YRES_MAX;
+	        y *= XRES_MAX/YRES_MAX;
+	        y += LTRB_Y;
+                break;
+
+	    case 2:
+	        x *= XRES_MAX/YRES_MAX;
+	        y *= YRES_MAX/XRES_MAX;
+		break;
+
+	    case 0:
+	    default:
+		break;
+	}
+
+	switch (a) {
+		case PRESS:
+			send_event(EV_ABS, ABS_MT_SLOT, 0);
+			send_event(EV_ABS, ABS_MT_TRACKING_ID, tracking_id++);
+			send_event(EV_ABS, ABS_PRESSURE, 50);
+			send_event(EV_ABS, ABS_MT_PRESSURE, 50);
+			send_event(EV_ABS, ABS_MT_POSITION_X, x);
+			send_event(EV_ABS, ABS_MT_POSITION_Y, y);
+			send_event(EV_KEY, BTN_TOUCH, 1);
+			break;
+
+		case RELEASE:
+			send_event(EV_ABS, ABS_MT_SLOT, 0);
+			send_event(EV_ABS, ABS_PRESSURE, 0);
+			send_event(EV_ABS, ABS_MT_PRESSURE, 0);
+			send_event(EV_ABS, ABS_MT_TRACKING_ID, -1);
+			send_event(EV_KEY, BTN_TOUCH, 0);
+			break;
+		case MOVE:
+			send_event(EV_ABS, ABS_MT_POSITION_X, x);
+			send_event(EV_ABS, ABS_MT_POSITION_Y, y);
+			break;
+		default:
+			break;
+	}
 	send_event(EV_SYN, SYN_REPORT, 0);
 	return true;
-}
-
-bool vinput_touch_release(u_int32_t x, u_int32_t y)
-{
-	send_event(EV_ABS, ABS_MT_SLOT, 0);
-	send_event(EV_ABS, ABS_PRESSURE, 0);
-	send_event(EV_ABS, ABS_MT_PRESSURE, 0);
-	send_event(EV_ABS, ABS_MT_TRACKING_ID, -1);
-	send_event(EV_KEY, BTN_TOUCH, 0);
-	send_event(EV_SYN, SYN_REPORT, 0);
-	return true;
-}
-bool vinput_mouse_position(u_int32_t x, u_int32_t y)
-{
-  if (mqId == -1)
-  {
-    return false;
-  }
-
-  if (x)
-     send_event(EV_ABS, ABS_MT_POSITION_X, x);
-
-  if (y)
-     send_event(EV_ABS, ABS_MT_POSITION_Y, y);
-	
-  send_event(EV_SYN, SYN_REPORT, 0);
-  return true;
 }
