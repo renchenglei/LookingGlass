@@ -93,6 +93,7 @@ bool vinput_touch(action a, u_int32_t x, u_int32_t y, int rotation) {
 		break;
 	}
 
+
 	switch (a) {
 		case PRESS:
 			send_event(EV_ABS, ABS_MT_SLOT, 0);
@@ -118,6 +119,7 @@ bool vinput_touch(action a, u_int32_t x, u_int32_t y, int rotation) {
 		default:
 			break;
 	}
+
 	send_event(EV_SYN, SYN_REPORT, 0);
 	return true;
 }
