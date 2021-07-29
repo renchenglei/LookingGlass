@@ -42,12 +42,13 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include "utils.h"
 #include "kb.h"
 #include "ll.h"
-
+#include "vsock_clipboard.h"
 #ifdef USE_INTELVTOUCH
 #include "vInputClient.h"
 #endif
 
 static bool spice_running = true;
+static bool frame_ready = false;
 
 // forwards
 static int cursorThread(void * unused);
@@ -116,9 +117,26 @@ static int renderThread(void * unused)
 
   struct timespec time;
   clock_gettime(CLOCK_MONOTONIC, &time);
+  frame_ready = true;
 
   while(state.running)
   {
+    uint64_t nsec = time.tv_nsec + state.frameTime;
+    if(!frame_ready) {
+      if (nsec > 1e9)
+      {
+        time.tv_nsec = nsec - 1e9;
+        ++time.tv_sec;
+      }
+      else
+        time.tv_nsec = nsec;
+
+      clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time, NULL);
+      continue;
+    }
+    else
+      frame_ready = false;
+
     if (state.lgrResize)
     {
       if (state.lgr)
@@ -148,7 +166,6 @@ static int renderThread(void * unused)
       }
     }
 
-    uint64_t nsec = time.tv_nsec + state.frameTime;
     if (nsec > 1e9)
     {
       time.tv_nsec = nsec - 1e9;
@@ -167,6 +184,7 @@ static int renderThread(void * unused)
 
 static int cursorThread(void * unused)
 {
+  return 0;
   KVMFRCursor         header;
   LG_RendererCursor   cursorType     = LG_CURSOR_COLOR;
   uint32_t            version        = 0;
@@ -300,6 +318,7 @@ static int frameThread(void * unused)
       usleep(params.framePollInterval);
       continue;
     }
+    frame_ready = true;
 
     // we must take a copy of the header to prevent the contained
     // arguments from being abused to overflow buffers.
@@ -423,6 +442,30 @@ int spiceThread(void * arg)
   return 0;
 }
 
+int guestClipboardThread(void * arg)
+{
+  vsock_connect();
+  while(state.running)
+    if (!vsock_process())
+    {
+      if (state.running)
+      {
+        if (vsock_connected()) {
+          DEBUG_ERROR("Failed to process guest messages.");
+	} else {
+	  sleep(1);
+	}
+	vsock_connect();
+        continue;
+      }
+      break;
+    }
+
+  state.running = false;
+  vsock_disconnect();
+  return 0;
+}
+
 static inline const uint32_t mapScancode(SDL_Scancode scancode)
 {
   uint32_t ps2;
@@ -469,7 +512,11 @@ void clipboardRelease()
   if (!params.clipboardToVM)
     return;
 
-  spice_clipboard_release();
+  if (params.useGuestClipboard) {
+    guest_clipboard_release();
+  } else {
+    spice_clipboard_release();
+  }
 }
 
 void clipboardNotify(const LG_ClipboardData type)
@@ -479,11 +526,19 @@ void clipboardNotify(const LG_ClipboardData type)
 
   if (type == LG_CLIPBOARD_DATA_NONE)
   {
-    spice_clipboard_release();
+    if (params.useGuestClipboard) {
+      guest_clipboard_release();
+    } else {
+      spice_clipboard_release();
+    }
     return;
   }
 
-  spice_clipboard_grab(clipboard_type_to_spice_type(type));
+  if (params.useGuestClipboard) {
+    guest_clipboard_grab(clipboard_type_to_spice_type(type));
+  } else {
+    spice_clipboard_grab(clipboard_type_to_spice_type(type));
+  }
 }
 
 void clipboardData(const LG_ClipboardData type, uint8_t * data, size_t size)
@@ -493,6 +548,7 @@ void clipboardData(const LG_ClipboardData type, uint8_t * data, size_t size)
 
   uint8_t * buffer = data;
 
+#ifndef GUEST_ANDROID
   // unix2dos
   if (type == LG_CLIPBOARD_DATA_TEXT)
   {
@@ -513,8 +569,13 @@ void clipboardData(const LG_ClipboardData type, uint8_t * data, size_t size)
     }
     size = newSize;
   }
+#endif
 
-  spice_clipboard_data(clipboard_type_to_spice_type(type), buffer, (uint32_t)size);
+  if(params.useGuestClipboard) {
+    guest_clipboard_data(clipboard_type_to_spice_type(type), buffer, (uint32_t)size);
+  } else {
+    spice_clipboard_data(clipboard_type_to_spice_type(type), buffer, (uint32_t)size);
+  }
   if (buffer != data)
     free(buffer);
 }
@@ -531,7 +592,11 @@ void clipboardRequest(const LG_ClipboardReplyFn replyFn, void * opaque)
   cbr->opaque  = opaque;
   ll_push(state.cbRequestList, cbr);
 
-  spice_clipboard_request(state.cbType);
+  if (params.useGuestClipboard) {
+    guest_clipboard_request(state.cbType);
+  } else {
+    spice_clipboard_request(state.cbType);
+  }
 }
 
 void spiceClipboardNotice(const SpiceDataType type)
@@ -633,7 +698,8 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_SYSWMEVENT:
     {
-      if (params.useSpiceClipboard && state.lgc && state.lgc->wmevent)
+      if ((params.useSpiceClipboard || params.useGuestClipboard) &&
+          state.lgc && state.lgc->wmevent)
         state.lgc->wmevent(event->syswm.msg);
       return 0;
     }
@@ -1146,7 +1212,7 @@ int run()
   LG_RendererParams lgrParams;
   lgrParams.showFPS = params.showFPS;
   Uint32 sdlFlags;
-
+  if (params.useUI) {
   if (params.forceRenderer)
   {
     DEBUG_INFO("Trying forced renderer");
@@ -1177,7 +1243,7 @@ int run()
     DEBUG_INFO("Unable to find a suitable renderer");
     return -1;
   }
-
+  }
   state.window = SDL_CreateWindow(
     params.windowTitle,
     params.center ? SDL_WINDOWPOS_CENTERED : params.x,
@@ -1185,7 +1251,7 @@ int run()
     params.w,
     params.h,
     (
-      SDL_WINDOW_SHOWN |
+      (params.useUI ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN) |
       (params.fullscreen  ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) |
       (params.allowResize ? SDL_WINDOW_RESIZABLE  : 0) |
       (params.borderless  ? SDL_WINDOW_BORDERLESS : 0) |
@@ -1300,27 +1366,32 @@ int run()
   }
 
   SDL_Thread *t_spice  = NULL;
+  SDL_Thread *t_guest  = NULL;
   SDL_Thread *t_frame  = NULL;
   SDL_Thread *t_render = NULL;
 
 #ifdef USE_INTELVTOUCH
-  initvInputClient(params.shmFile);
+  if (params.useUI) {
+    initvInputClient(params.shmFile);
+  }
 #endif
 
   while(1)
   {
-    state.shm = (struct KVMFRHeader *)map_memory();
-    if (!state.shm)
-    {
-      DEBUG_ERROR("Failed to map memory");
-      break;
-    }
+    if (params.useUI) {
+      state.shm = (struct KVMFRHeader *)map_memory();
+      if (!state.shm)
+      {
+        DEBUG_ERROR("Failed to map memory");
+        break;
+      }
 
-    // start the renderThread so we don't just display junk
-    if (!(t_render = SDL_CreateThread(renderThread, "renderThread", NULL)))
-    {
-      DEBUG_ERROR("render create thread failed");
-      break;
+      // start the renderThread so we don't just display junk
+      if (!(t_render = SDL_CreateThread(renderThread, "renderThread", NULL)))
+      {
+        DEBUG_ERROR("render create thread failed");
+        break;
+      }
     }
 
     if (params.useSpiceInput || params.useSpiceClipboard)
@@ -1350,12 +1421,29 @@ int run()
         DEBUG_ERROR("spice create thread failed");
         break;
       }
+    } else if (params.useGuestClipboard) {
+      DEBUG_ERROR("Using guest clipboard");
+      guest_set_clipboard_cb(
+          spiceClipboardNotice,
+	  spiceClipboardData,
+	  spiceClipboardRelease,
+	  spiceClipboardRequest);
+      if (!(t_guest = SDL_CreateThread(guestClipboardThread, "guestClipboardThread", NULL))) {
+        DEBUG_ERROR("Guest clipboard thread failed");
+	break;
+      }
     }
 
     // ensure mouse acceleration is identical in server mode
     SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, "1", SDL_HINT_OVERRIDE);
     SDL_SetEventFilter(eventFilter, NULL);
 
+    if (!params.useUI) {
+      while(state.running) {
+        SDL_WaitEventTimeout(NULL, 1000);
+      }
+      break;
+    }
     // flag the host that we are starting up this is important so that
     // the host wakes up if it is waiting on an interrupt, the host will
     // also send us the current mouse shape since we won't know it yet
@@ -1459,6 +1547,10 @@ int run()
       SDL_WaitThread(t_spice, NULL);
 
     spice_disconnect();
+  }
+
+  if (t_guest) {
+    SDL_WaitThread(t_guest, NULL);
   }
 
   if (state.lgr)
