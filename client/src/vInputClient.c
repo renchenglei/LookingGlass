@@ -69,30 +69,57 @@ void send_event(int32_t type, int32_t code, int32_t value) {
   msgsnd(mqId, &mD, sizeof(struct mQData), 0);
 }
 
-bool vinput_touch(action a, u_int32_t x, u_int32_t y, int rotation) {
-
+bool vinput_touch(action a,bool fullscreen, u_int32_t x, u_int32_t y, int rotation, u_int32_t dstRecth,u_int32_t dstRectw,u_int32_t dstRectx) {
 	if (mqId == -1) {
 		return false;
 	}
 
-        switch (rotation) {
-	    case 1:
-	    case 3:
-	        x *= XRES_MAX/YRES_MAX;
-	        y *= XRES_MAX/YRES_MAX;
-	        y += LTRB_Y;
-                break;
+	if (fullscreen == 1)
+	{
+		switch (rotation) {
+		    case 1:
+		    case 3:
+			x -= dstRectx;
+			x *= XRES_MAX/dstRectw;
+			y *= XRES_MAX/dstRectw;
+			y += LTRB_Y;
+			break;
 
-	    case 2:
-	        x *= XRES_MAX/YRES_MAX;
-	        y *= YRES_MAX/XRES_MAX;
-		break;
+		    case 2:
+			x -= dstRectx;
+			x *= XRES_MAX/dstRectw;
+			y *= YRES_MAX/dstRecth;
+			break;
 
-	    case 0:
-	    default:
-		break;
+		    case 0:
+			x -= dstRectx;
+			x *= XRES_MAX/dstRectw;
+			y *= YRES_MAX/dstRecth;
+
+		    default:
+			break;
+		}
 	}
+	else
+        {
+                switch (rotation) {
+                    case 1:
+                    case 3:
+                        x *= XRES_MAX/YRES_MAX;
+                        y *= XRES_MAX/YRES_MAX;
+                        y += LTRB_Y;
+                        break;
 
+                    case 2:
+                        x *= XRES_MAX/YRES_MAX;
+                        y *= YRES_MAX/XRES_MAX;
+                        break;
+
+                    case 0:
+                    default:
+                        break;
+		}
+        }
 
 	switch (a) {
 		case PRESS:
