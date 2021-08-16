@@ -7,5 +7,5 @@ typedef enum {PRESS, RELEASE, MOVE} action;
 int initvInputClient(const char []);
 void send_sync_event();
 void send_event(int32_t type, int32_t code, int32_t value);
-bool vinput_touch(action a, u_int32_t x, u_int32_t y, int rotation);
+bool vinput_touch(action a,bool fullscreen, u_int32_t x, u_int32_t y, int rotation, u_int32_t dstRecth,u_int32_t dstRectw,u_int32_t dstRectx);
 

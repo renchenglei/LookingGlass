@@ -46,6 +46,7 @@ struct AppState
   float                accX, accY;
   uint8_t              rotate;
   bool                 isMax;
+  bool			fullscreen;
 
   const LG_Renderer  * lgr;
   void               * lgrData;

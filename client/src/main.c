@@ -70,6 +70,7 @@ static void updatePositionInfo()
       const float wndAspect = (float)state.windowH / (float)state.windowW;
       if (wndAspect < srcAspect)
       {
+        state.fullscreen=1;
         state.dstRect.w = (float)state.windowH / srcAspect;
         state.dstRect.h = state.windowH;
         state.dstRect.x = (state.windowW >> 1) - (state.dstRect.w >> 1);
@@ -77,6 +78,7 @@ static void updatePositionInfo()
       }
       else
       {
+        state.fullscreen =0;
         state.dstRect.w = state.windowW;
         state.dstRect.h = (float)state.windowW * srcAspect;
         state.dstRect.x = 0;
@@ -91,9 +93,9 @@ static void updatePositionInfo()
       state.dstRect.h = state.windowH;
     }
     state.dstRect.valid = true;
-
     state.scaleX = (float)state.srcSize.y / (float)state.dstRect.h;
     state.scaleY = (float)state.srcSize.x / (float)state.dstRect.w;
+
   }
 
   state.lgrResize = true;
@@ -707,7 +709,7 @@ int eventFilter(void * userdata, SDL_Event * event)
     case SDL_MOUSEMOTION:
     {
 #ifdef USE_INTELVTOUCH
-      vinput_touch(MOVE, event->button.x, event->button.y, state.rotate);
+      vinput_touch(MOVE,state.fullscreen, event->button.x, event->button.y, state.rotate, state.dstRect.h,state.dstRect.w,state.dstRect.x);
       if (realignGuest)
         realignGuest = false;
 #else
@@ -934,7 +936,7 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_MOUSEBUTTONDOWN:
 #ifdef USE_INTELVTOUCH
-      vinput_touch(PRESS, event->button.x, event->button.y, state.rotate);
+      vinput_touch(PRESS,state.fullscreen, event->button.x, event->button.y, state.rotate, state.dstRect.h,state.dstRect.w,state.dstRect.x);
 #else
       if (!spice_running)
       {
@@ -965,7 +967,7 @@ int eventFilter(void * userdata, SDL_Event * event)
 
     case SDL_MOUSEBUTTONUP:
 #ifdef USE_INTELVTOUCH
-      vinput_touch(RELEASE, event->button.x, event->button.y, state.rotate);
+      vinput_touch(RELEASE,state.fullscreen, event->button.x, event->button.y, state.rotate, state.dstRect.h,state.dstRect.w,state.dstRect.x);
 #else
       if (!spice_running)
       {
